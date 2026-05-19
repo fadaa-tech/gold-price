@@ -51,7 +51,7 @@ function trendFrom(current: number, previous: number | null | undefined): Trend 
 export function computeLocal(
   internationalPerGram: number,
   cfg: { buy: number; sell: number; workmanship: number; vatRate: number },
-): Omit<LocalKaratPrice, "karat" | "label" | "internationalPerGram"> {
+): Omit<LocalKaratPrice, "karat" | "label" | "internationalPerGram" | "trend"> {
   const buyPerGram = Math.max(0, internationalPerGram - cfg.buy);
   const sellPerGram = internationalPerGram + cfg.sell;
   const vatOnWorkmanship = cfg.workmanship * cfg.vatRate;

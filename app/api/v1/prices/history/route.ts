@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   return Response.json({
     currency: "EGP",
     count: rows.length,
-    snapshots: rows.map((r) => ({
+    snapshots: rows.map((r: (typeof rows)[number]) => ({
       id: r.id,
       fetchedAt: r.fetchedAt.toISOString(),
       goldApiTimestamp: r.goldApiTimestamp.toISOString(),
