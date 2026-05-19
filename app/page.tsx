@@ -1,65 +1,107 @@
-import Image from "next/image";
+import { getLocalPriceSet, getCoinPrices } from "@/lib/pricing";
+import { LivePricesProvider } from "./_components/LivePricesProvider";
+import { LiveHeader } from "./_components/LiveHeader";
+import {
+  LiveCoinGrid,
+  LiveHeroCards,
+  LiveKaratTable,
+} from "./_components/LiveSections";
+import type { PricesPayload } from "./_components/types";
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export default async function Page() {
+  let initial: PricesPayload | null = null;
+  let error: string | null = null;
+  try {
+    const [prices, coins] = await Promise.all([
+      getLocalPriceSet(),
+      getCoinPrices(),
+    ]);
+    initial = { currency: "EGP", prices, coins };
+  } catch (e) {
+    error = (e as Error).message;
+  }
+
+  if (!initial) {
+    return (
+      <main className="mx-auto max-w-6xl px-5 py-14">
+        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5 text-sm text-red-200">
+          <p className="font-medium">Couldn&rsquo;t load live prices.</p>
+          <p className="mt-1 opacity-80">{error}</p>
         </div>
       </main>
+    );
+  }
+
+  return (
+    <LivePricesProvider initial={initial}>
+      <main className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:space-y-10 sm:px-5 sm:py-12">
+        <LiveHeader />
+
+        <section className="space-y-3">
+          <SectionTitle
+            en="Most Common Karats"
+            ar="العيارات الأكثر شيوعاً"
+            hint="The three karats that move 90% of the Egyptian market."
+          />
+          <LiveHeroCards />
+        </section>
+
+        <section className="space-y-3">
+          <SectionTitle
+            en="All Karats · Per Gram"
+            ar="جميع العيارات · سعر الجرام"
+            hint="Sell is bullion price. Jewelry adds workmanship (مصنعية) + 14% VAT on the workmanship — Egyptian VAT law."
+          />
+          <LiveKaratTable />
+        </section>
+
+        <section className="space-y-3">
+          <SectionTitle
+            en="Coins & Bullion"
+            ar="الجنيهات والسبائك"
+            hint="Egyptian gold pound = 8 g of 21K. Bullion-grade pricing — no jewelry workmanship."
+          />
+          <LiveCoinGrid />
+        </section>
+
+        <footer className="border-t border-[var(--border)] pt-6 text-xs text-[var(--foreground)]/40">
+          Spot prices from{" "}
+          <span className="text-[var(--gold-soft)]/80">goldapi.io</span>, EGP
+          quoted directly. Local pricing applies configurable dealer spreads,
+          workmanship per karat, and the 14% Egyptian VAT on workmanship only.
+          Tune everything in the <code>KaratConfig</code> &amp;{" "}
+          <code>CoinConfig</code> tables.
+        </footer>
+      </main>
+    </LivePricesProvider>
+  );
+}
+
+function SectionTitle({
+  en,
+  ar,
+  hint,
+}: {
+  en: string;
+  ar: string;
+  hint?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+      <div className="flex items-baseline gap-3">
+        <h2 className="text-lg font-semibold text-[var(--gold-soft)]">{en}</h2>
+        <span className="text-sm text-[var(--foreground)]/45" dir="rtl">
+          · {ar}
+        </span>
+      </div>
+      {hint ? (
+        <p className="max-w-md text-[11px] text-[var(--foreground)]/45 sm:text-right">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }

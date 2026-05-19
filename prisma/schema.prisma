@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// One snapshot of the international gold spot price expressed in EGP,
+/// as returned by goldapi.io (XAU/EGP). Karat per-gram values are
+/// the raw international gold price for that purity — NO local markup.
+model GoldSnapshot {
+  id                  String   @id @default(cuid())
+  fetchedAt           DateTime @default(now())
+  goldApiTimestamp    DateTime
+  pricePerOunceEgp    Decimal  @db.Decimal(14, 4)
+  ask                 Decimal  @db.Decimal(14, 4)
+  bid                 Decimal  @db.Decimal(14, 4)
+  pricePerGram24k     Decimal  @db.Decimal(14, 4)
+  pricePerGram22k     Decimal  @db.Decimal(14, 4)
+  pricePerGram21k     Decimal  @db.Decimal(14, 4)
+  pricePerGram20k     Decimal  @db.Decimal(14, 4)
+  pricePerGram18k     Decimal  @db.Decimal(14, 4)
+  pricePerGram16k     Decimal  @db.Decimal(14, 4)
+  pricePerGram14k     Decimal  @db.Decimal(14, 4)
+  pricePerGram10k     Decimal  @db.Decimal(14, 4)
+  raw                 Json
+
+  @@index([fetchedAt])
+}
+
+/// Configurable per-karat local Egyptian markups.
+/// Local sell price = international + sellSpread + workmanship + VAT(workmanship)
+/// Local buy price  = international - buySpread
+/// All amounts are EGP per gram. VAT rate is a fraction (e.g. 0.14 = 14%).
+model KaratConfig {
+  karat              Int      @id // 24, 22, 21, 20, 18, 16, 14, 10
+  label              String
+  buySpreadEgpGram   Decimal  @db.Decimal(10, 4)
+  sellSpreadEgpGram  Decimal  @db.Decimal(10, 4)
+  workmanshipEgpGram Decimal  @db.Decimal(10, 4)
+  vatRate            Decimal  @db.Decimal(6, 4) @default(0.14)
+  enabled            Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
+}
+
+/// Egyptian coin sizes (Gold Pound = 8g of 21K, Half = 4g of 21K, etc.)
+model CoinConfig {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  labelEn   String
+  labelAr   String
+  karat     Int
+  grams     Decimal  @db.Decimal(10, 4)
+  enabled   Boolean  @default(true)
+  sortOrder Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+/// API tokens for clients (mobile app etc). Loaded into memory at startup
+/// alongside API_AUTH_TOKENS env var.
+model ApiKey {
+  id        String   @id @default(cuid())
+  label     String
+  token     String   @unique
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  lastUsed  DateTime?
+}
