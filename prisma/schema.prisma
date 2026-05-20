@@ -46,16 +46,20 @@ model KaratConfig {
 }
 
 /// Egyptian coin sizes (Gold Pound = 8g of 21K, Half = 4g of 21K, etc.)
+/// Coin workmanship is per-coin (e.g. 1kg ingot ~26 EGP/g, Gold Pound ~55
+/// EGP/g) and is NOT subject to VAT in Egypt — coins & bullion bars are
+/// VAT-exempt under Egyptian tax law.
 model CoinConfig {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  labelEn   String
-  labelAr   String
-  karat     Int
-  grams     Decimal  @db.Decimal(10, 4)
-  enabled   Boolean  @default(true)
-  sortOrder Int      @default(0)
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  slug               String   @unique
+  labelEn            String
+  labelAr            String
+  karat              Int
+  grams              Decimal  @db.Decimal(10, 4)
+  workmanshipEgpGram Decimal  @db.Decimal(10, 4) @default(0)
+  enabled            Boolean  @default(true)
+  sortOrder          Int      @default(0)
+  updatedAt          DateTime @updatedAt
 }
 
 /// API tokens for clients (mobile app etc). Loaded into memory at startup

@@ -22,6 +22,7 @@ export type Coin = {
   labelAr: string;
   karat: number;
   grams: number;
+  workmanshipPerGram: number;
   buyPrice: number;
   sellPrice: number;
   retailSellPrice: number;

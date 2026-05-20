@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { refreshNow } from "./actions";
+import { AutoRefreshButton } from "./AutoRefreshButton";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -104,14 +104,7 @@ export default async function Dashboard() {
           </p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
-          <form action={refreshNow}>
-            <button
-              type="submit"
-              className="rounded-md cursor-pointer bg-[var(--gold)] px-4 py-2 text-sm font-medium text-[#1a1408] hover:bg-[var(--gold-soft)]"
-            >
-              Refresh now
-            </button>
-          </form>
+          <AutoRefreshButton />
           <Link
             href="/"
             className="text-xs text-[var(--gold-soft)] hover:underline"

@@ -78,6 +78,11 @@ function freshnessWindowMs() {
  * Returns the latest snapshot, refreshing from goldapi.io if the cached one
  * is older than PRICE_CACHE_MINUTES. Always persists a new snapshot when it
  * refreshes so we have a history trail.
+ *
+ * If the upstream fetch fails (e.g. goldapi.io quota exceeded, 5xx, network
+ * error), we fall back to the latest cached snapshot rather than crashing
+ * the page. Only when there is NO cached snapshot at all do we propagate
+ * the error.
  */
 export async function getOrRefreshSnapshot(force = false) {
   const latest = await prisma.goldSnapshot.findFirst({
@@ -88,25 +93,35 @@ export async function getOrRefreshSnapshot(force = false) {
     !latest || Date.now() - latest.fetchedAt.getTime() > freshnessWindowMs();
 
   if (force || isStale) {
-    const data = await fetchEgyptGoldSpot();
-    const created = await prisma.goldSnapshot.create({
-      data: {
-        goldApiTimestamp: new Date(data.timestamp * 1000),
-        pricePerOunceEgp: data.price,
-        ask: data.ask,
-        bid: data.bid,
-        pricePerGram24k: data.price_gram_24k,
-        pricePerGram22k: data.price_gram_22k,
-        pricePerGram21k: data.price_gram_21k,
-        pricePerGram20k: data.price_gram_20k,
-        pricePerGram18k: data.price_gram_18k,
-        pricePerGram16k: data.price_gram_16k,
-        pricePerGram14k: data.price_gram_14k,
-        pricePerGram10k: data.price_gram_10k,
-        raw: data as unknown as object,
-      },
-    });
-    return created;
+    try {
+      const data = await fetchEgyptGoldSpot();
+      const created = await prisma.goldSnapshot.create({
+        data: {
+          goldApiTimestamp: new Date(data.timestamp * 1000),
+          pricePerOunceEgp: data.price,
+          ask: data.ask,
+          bid: data.bid,
+          pricePerGram24k: data.price_gram_24k,
+          pricePerGram22k: data.price_gram_22k,
+          pricePerGram21k: data.price_gram_21k,
+          pricePerGram20k: data.price_gram_20k,
+          pricePerGram18k: data.price_gram_18k,
+          pricePerGram16k: data.price_gram_16k,
+          pricePerGram14k: data.price_gram_14k,
+          pricePerGram10k: data.price_gram_10k,
+          raw: data as unknown as object,
+        },
+      });
+      return created;
+    } catch (err) {
+      if (latest) {
+        console.warn(
+          `[pricing] upstream fetch failed, serving cached snapshot from ${latest.fetchedAt.toISOString()}: ${(err as Error).message}`,
+        );
+        return latest;
+      }
+      throw err;
+    }
   }
   return latest;
 }
@@ -170,6 +185,7 @@ export type CoinPrice = {
   labelAr: string;
   karat: number;
   grams: number;
+  workmanshipPerGram: number;
   buyPrice: number;
   sellPrice: number;
   retailSellPrice: number;
@@ -196,15 +212,20 @@ export async function getCoinPrices(force = false): Promise<{
     coins: coins.map((c) => {
       const k = byKarat.get(c.karat as Karat);
       const grams = Number(c.grams);
+      const workmanshipPerGram = Number(c.workmanshipEgpGram);
+      // Coins & bullion are VAT-exempt in Egypt. Buyback uses the karat's
+      // dealer bid (raw gold − karat-level spread); retail adds the per-coin
+      // workmanship on top of the bullion ask. No 14% VAT applied.
       const buy = k ? k.buyPerGram * grams : 0;
       const sell = k ? k.sellPerGram * grams : 0;
-      const retail = k ? k.retailSellPerGram * grams : 0;
+      const retail = k ? (k.sellPerGram + workmanshipPerGram) * grams : 0;
       return {
         slug: c.slug,
         labelEn: c.labelEn,
         labelAr: c.labelAr,
         karat: c.karat,
         grams,
+        workmanshipPerGram: round2(workmanshipPerGram),
         buyPrice: round2(buy),
         sellPrice: round2(sell),
         retailSellPrice: round2(retail),
