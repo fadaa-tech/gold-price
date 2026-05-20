@@ -8,14 +8,20 @@ import { TrendBadge } from "./TrendBadge";
 
 export function LiveHeader() {
   const { data, refreshing, refresh, lastUpdatedAt, flashKey } = usePrices();
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
   const p = data.prices;
+  const updatedLabel = now === null ? "…" : relativeFromNow(p.fetchedAt, now);
+  const clientCheckLabel =
+    now === null
+      ? "…"
+      : relativeFromNow(new Date(lastUpdatedAt).toISOString(), now);
 
   return (
     <header className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/60 p-4 backdrop-blur sm:p-6">
@@ -60,17 +66,19 @@ export function LiveHeader() {
           </div>
 
           <div className="flex flex-col items-start gap-1 text-[11px] text-[var(--foreground)]/55 sm:items-end">
-            <span>
-              Updated {relativeFromNow(p.fetchedAt, now)} · spot{" "}
-              {fmtTime(p.goldApiTimestamp)}
+            <span suppressHydrationWarning>
+              Updated {updatedLabel} · spot {fmtTime(p.goldApiTimestamp)}
             </span>
-            <span>Auto-refresh: 60s · client check: {relativeFromNow(new Date(lastUpdatedAt).toISOString(), now)}</span>
+            <span suppressHydrationWarning>
+              Auto-refresh: 60s · client check: {clientCheckLabel}
+            </span>
             <div className="mt-1 flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => void refresh()}
+                onClick={() => void refresh({ force: true })}
                 disabled={refreshing}
-                className="rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-xs text-[var(--gold-soft)] transition hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/10 disabled:opacity-50"
+                aria-busy={refreshing}
+                className="rounded-md border cursor-pointer border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-xs text-[var(--gold-soft)] transition hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {refreshing ? "Refreshing…" : "↻ Refresh"}
               </button>

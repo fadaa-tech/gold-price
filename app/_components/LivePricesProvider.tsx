@@ -14,7 +14,7 @@ import type { PricesPayload } from "./types";
 type Ctx = {
   data: PricesPayload;
   refreshing: boolean;
-  refresh: () => Promise<void>;
+  refresh: (opts?: { force?: boolean }) => Promise<void>;
   lastUpdatedAt: number;
   flashKey: number;
 };
@@ -41,18 +41,22 @@ export function LivePricesProvider({
   const [lastUpdatedAt, setLastUpdatedAt] = useState(() => Date.now());
   const [flashKey, setFlashKey] = useState(0);
   const inflight = useRef(false);
+  const latestFetchedAt = useRef(initial.prices.fetchedAt);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (opts?: { force?: boolean }) => {
     if (inflight.current) return;
     inflight.current = true;
     setRefreshing(true);
     try {
-      const res = await fetch("/api/public/prices", { cache: "no-store" });
+      const url = opts?.force
+        ? "/api/public/prices?force=1"
+        : "/api/public/prices";
+      const res = await fetch(url, { cache: "no-store" });
       if (res.ok) {
         const next = (await res.json()) as PricesPayload;
-        // Only flash if the snapshot actually changed
-        if (next.prices.fetchedAt !== data.prices.fetchedAt) {
+        if (next.prices.fetchedAt !== latestFetchedAt.current) {
           setFlashKey((k) => k + 1);
+          latestFetchedAt.current = next.prices.fetchedAt;
         }
         setData(next);
         setLastUpdatedAt(Date.now());
@@ -63,7 +67,7 @@ export function LivePricesProvider({
       inflight.current = false;
       setRefreshing(false);
     }
-  }, [data.prices.fetchedAt]);
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -72,7 +76,7 @@ export function LivePricesProvider({
     return () => clearInterval(id);
   }, [refresh, intervalMs]);
 
-  // Refresh when tab returns to focus, throttled
+  // Refresh when tab returns to focus
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === "visible") refresh();

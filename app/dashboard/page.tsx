@@ -107,7 +107,7 @@ export default async function Dashboard() {
           <form action={refreshNow}>
             <button
               type="submit"
-              className="rounded-md bg-[var(--gold)] px-4 py-2 text-sm font-medium text-[#1a1408] hover:bg-[var(--gold-soft)]"
+              className="rounded-md cursor-pointer bg-[var(--gold)] px-4 py-2 text-sm font-medium text-[#1a1408] hover:bg-[var(--gold-soft)]"
             >
               Refresh now
             </button>

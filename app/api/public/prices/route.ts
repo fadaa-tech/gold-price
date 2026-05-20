@@ -4,17 +4,22 @@ export const dynamic = "force-dynamic";
 
 // Public, unauthenticated read used by the landing page's auto-refresh.
 // The authenticated /api/v1/* endpoints remain the contract for the mobile app.
-export async function GET() {
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const force = url.searchParams.get("force") === "1";
   try {
-    const [prices, coins] = await Promise.all([
-      getLocalPriceSet(false),
-      getCoinPrices(false),
-    ]);
+    // Resolve prices first so the (forced) snapshot fetch happens once,
+    // then coins reuse the now-fresh cached snapshot.
+    const prices = await getLocalPriceSet(force);
+    const coins = await getCoinPrices(false);
     return Response.json(
       { currency: "EGP", prices, coins },
       {
         headers: {
-          "Cache-Control": "public, max-age=30, s-maxage=30",
+          // Manual refresh must bypass the browser cache; auto-refresh can be cached briefly.
+          "Cache-Control": force
+            ? "no-store"
+            : "public, max-age=30, s-maxage=30",
         },
       },
     );
